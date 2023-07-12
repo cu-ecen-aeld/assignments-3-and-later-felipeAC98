@@ -5,7 +5,7 @@
 #Cleaning for assignment2
 
 make clean
-make
+# make
 
 set -e
 set -u

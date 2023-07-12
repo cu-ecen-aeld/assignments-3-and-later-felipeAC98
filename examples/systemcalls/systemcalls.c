@@ -1,4 +1,9 @@
 #include "systemcalls.h"
+#include <stdlib.h> 
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <errno.h>
 
 /**
  * @param cmd the command to execute with system()
@@ -11,13 +16,20 @@ bool do_system(const char *cmd)
 {
 
 /*
- * TODO  add your code here
+ * Done  add your code here
  *  Call the system() function with the command set in the cmd
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
 
-    return true;
+
+	if(system(cmd)==0){
+		return true;
+	}
+	else{
+		return false;
+	}
+
 }
 
 /**
@@ -50,7 +62,7 @@ bool do_exec(int count, ...)
     command[count] = command[count];
 
 /*
- * TODO:
+ * DONE:
  *   Execute a system command by calling fork, execv(),
  *   and wait instead of system (see LSP page 161).
  *   Use the command[0] as the full path to the command to execute
@@ -58,9 +70,35 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+	pid_t pid = fork();
+	if(pid == 0){
+		printf("command: %s\n",command[0]);
+		execv(command[0],command);
+		perror("error execv: ");
+		return false;
+	}
+	else{
+		int status;
+
+		pid_t child_pid = wait(&status);
+
+		if(child_pid == -1){
+			return false;
+		}
+
+		if(WIFEXITED(status)){
+			printf("status:%d\n",WEXITSTATUS(status));
+			if(WEXITSTATUS(status)==0)
+				return true;
+			else
+				return false;
+		}
+		else{
+			return true;
+		}	
+	}
 
     va_end(args);
-
     return true;
 }
 
@@ -92,6 +130,8 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+
+	
 
     va_end(args);
 
