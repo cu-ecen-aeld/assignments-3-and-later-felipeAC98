@@ -84,7 +84,7 @@ bool do_exec(int count, ...)
 		printf("command: %s\n",command[0]);
 		execv(command[0],command);
 		perror("error execv: ");
-		return false;
+		exit(1); //we should return an error in order to correct handle it to the father
 	}
 	else{
 		printf("command: %s\n",command[0]);
@@ -105,7 +105,7 @@ bool do_exec(int count, ...)
 				return false;
 		}
 		else{
-			return true;
+			return false;
 		}	
 	}
 
@@ -155,8 +155,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
 			close(fd);
     		execvp(command[0], command); 
 			perror("execvp");
-		    abort();	
-			return false;	
+			exit(1);	
 		default:
 			close(fd);
        		 /* do whatever the parent wants to do. */
@@ -176,7 +175,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
                                 return false;
                 }
                 else{
-                        return true;
+                        return false;
                 }
 
 	}
