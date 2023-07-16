@@ -12,6 +12,8 @@ BUSYBOX_VERSION=1_33_1
 FINDER_APP_DIR=$(realpath $(dirname $0))
 ARCH=arm64
 CROSS_COMPILE=aarch64-none-linux-gnu-
+TOOLCHAIN=/home/tars/Documents/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu
+FINDER_APP=/home/tars/Documents/assignment-1-felipeAC98/finder-app/
 
 if [ $# -lt 1 ]
 then
@@ -21,6 +23,7 @@ else
 	echo "Using passed directory ${OUTDIR} for output"
 fi
 
+#Createind the outdir tree if not exists
 mkdir -p ${OUTDIR}
 
 cd "$OUTDIR"
@@ -35,6 +38,11 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
     git checkout ${KERNEL_VERSION}
 
     # TODO: Add your kernel build steps here
+    make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE}mrproper #deep clean
+    make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE}defconfig #configure for "virt" QEMU
+    make -j4 ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE}all   #build the kernel image
+    make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE}modules   #build modules
+    make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE}dtbs	   #build device tree
 fi
 
 echo "Adding the Image in outdir"
@@ -48,6 +56,11 @@ then
 fi
 
 # TODO: Create necessary base directories
+echo "Creating rootfs base directories" 
+mkdir -p bin dev etc home lib lib64 proc sbin sys tmp usr var
+mkdir -p usr/bin usr/lib usr/sbin
+mkdir -p var/log
+tree ./rootfs
 
 cd "$OUTDIR"
 if [ ! -d "${OUTDIR}/busybox" ]
@@ -56,25 +69,46 @@ git clone git://busybox.net/busybox.git
     cd busybox
     git checkout ${BUSYBOX_VERSION}
     # TODO:  Configure busybox
+    make distclean
+    make defconfig
 else
     cd busybox
 fi
 
 # TODO: Make and install busybox
+make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE}
+make CONFIG_PREFIX=${OUTDIR}/rootfs ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} install
 
 echo "Library dependencies"
 ${CROSS_COMPILE}readelf -a bin/busybox | grep "program interpreter"
 ${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
 
 # TODO: Add library dependencies to rootfs
+#cp ${TOOLCHAIN}/libc/lib/ ${OUTDIR}/lib64
+#cp ${TOOLCHAIN}/libc/lib/ ${OUTDIR}/lib
+cp ${TOOLCHAIN}/libc/lib64/ ${OUTDIR}/lib64
 
 # TODO: Make device nodes
+sudo mknod -m 666 dev/null c 1 3
+sudo mknod -m 600 dev/console c 5 1
 
 # TODO: Clean and build the writer utility
+cd "${FINDER_APP}"
+make CROSS_COMPILE
 
 # TODO: Copy the finder related scripts and executables to the /home directory
 # on the target rootfs
+cp ./writer ${OUTDIR}/rootfs/home
+cp ./finder.sh ${OUTDIR}/rootfs/home
+cp ./finder-test.sh ${OUTDIR}/rootfs/home
+cp ./../conf/username.txt ${OUTDIR}/rootfs/home
+cp ./autorun-qemu.sh ${OUTDIR}/rootfs/home
 
 # TODO: Chown the root directory
+cd "${OUTDIR}/rootfs/"
+sudo chown -R root:root
 
 # TODO: Create initramfs.cpio.gz
+cd "${OUTDIR}"
+find . | cpio -H newc -ov --owner root:root > ${OUTDIR}/initramfs.cpio
+gzip -f initramfs.cpio
