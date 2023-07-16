@@ -12,3 +12,4 @@ clean :
 
 CROSS_COMPILE:
 	$(CROSS) -g $(CFLAGS) -c -o writer.o writer.c && file writer.o > ./../assignments/assignment2/fileresult.txt
+	$(CROSS) -g $(CFLAGS) -I/ writer.o -o writer
