@@ -90,8 +90,8 @@ ${CROSS_COMPILE}readelf -a bin/busybox | grep "program interpreter"
 ${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
 
 # TODO: Add library dependencies to rootfs
-#cp ${TOOLCHAIN}/libc/lib/ ${OUTDIR}/lib64
-#cp ${TOOLCHAIN}/libc/lib/ ${OUTDIR}/lib
+cp -r ${TOOLCHAIN}/libc/lib/ ${OUTDIR}/rootfs/lib64
+cp -r ${TOOLCHAIN}/libc/lib/ ${OUTDIR}/rootfs/lib
 cp -r ${TOOLCHAIN}/libc/lib64/ ${OUTDIR}/rootfs/lib64
 
 # TODO: Make device nodes
@@ -116,6 +116,6 @@ cd "${OUTDIR}/rootfs/"
 sudo chown -R root:root *
 
 # TODO: Create initramfs.cpio.gz
-cd "${OUTDIR}"
 find . | cpio -H newc -ov --owner root:root > ${OUTDIR}/initramfs.cpio
+cd "${OUTDIR}"
 gzip -f initramfs.cpio
