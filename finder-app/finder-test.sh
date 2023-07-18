@@ -4,7 +4,7 @@
 
 #Cleaning for assignment2
 
-make clean
+#make clean
 # make
 
 set -e
@@ -37,7 +37,7 @@ echo "Writing ${NUMFILES} files containing string ${WRITESTR} to ${WRITEDIR}"
 rm -rf "${WRITEDIR}"
 
 # create $WRITEDIR if not assignment1
-assignment=`cat ../conf/assignment.txt`
+assignment=`cat conf/assignment.txt`
 
 if [ $assignment != 'assignment1' ]
 then
@@ -59,9 +59,11 @@ fi
 
 for i in $( seq 1 $NUMFILES)
 do
+	ls -lh
 	./writer "$WRITEDIR/${username}$i.txt" "$WRITESTR"
 done
 
+ls -lh
 OUTPUTSTRING=$(./finder.sh "$WRITEDIR" "$WRITESTR")
 
 # remove temporary directories
