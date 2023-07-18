@@ -1,21 +1,16 @@
-#!/bin/bash
+#!/bin/sh
+
 DIR=$1
 search=$2
 
-if (("$#" ==2))
+if [ "$#" -eq 2 ]
 then 
-	if [ -d "$DIR" ]
+	if [ -d $DIR ]
 	then
-		#allFiles="$(find $DIR -type f)"
-		match=0
-		for file in "$DIR"/*  #allFiles /*
-		do
-			fileMatch="$(cat $file | grep $search | wc -l )"
-			((match=match+fileMatch))
-		done
-		nFiles="$(ls $DIR |  wc -l)"
+		nFiles=$(find $DIR -type f |  wc -l)
+		nMatch=$(grep -r $search $DIR | wc -l)
 
-		echo "The number of files are $nFiles and the number of matching lines are $match" 
+		echo "The number of files are $nFiles and the number of matching lines are $nMatch" 
 		exit 0
 	else
 		echo "fail"
