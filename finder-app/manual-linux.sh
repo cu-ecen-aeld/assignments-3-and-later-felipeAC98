@@ -13,7 +13,7 @@ FINDER_APP_DIR=$(realpath $(dirname $0))
 ARCH=arm64
 CROSS_COMPILE=aarch64-none-linux-gnu-
 TOOLCHAIN=$(${CROSS_COMPILE}gcc --print-sysroot)
-FINDER_APP=/home/tars/Documents/assignment-1-felipeAC98/finder-app/
+FINDER_APP=$(realpath $(dirname $0))
 
 if [ $# -lt 1 ]
 then
