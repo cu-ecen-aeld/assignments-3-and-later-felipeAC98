@@ -23,7 +23,7 @@ void* threadfunc(void* thread_param)
 
 	printf("wait to obtain : %d\n",thread_func_args->wait_to_obtain_ms);
 
-	sleep(thread_func_args->wait_to_obtain_ms);
+	usleep(thread_func_args->wait_to_obtain_ms);
 
     //int rc =pthread_mutex_lock(&thread_func_args->mutex);
 	int rc =pthread_mutex_lock(&mutex_g);
@@ -74,7 +74,6 @@ bool start_thread_obtaining_mutex(pthread_t *thread, pthread_mutex_t *mutex,int 
 		return false;
 	}
 	t_data->thread_complete_success=false;
-	//t_data->mutex=*mutex;
 	t_data->wait_to_release_ms=wait_to_release_ms;
 	t_data->wait_to_obtain_ms=wait_to_obtain_ms;
 
@@ -86,7 +85,7 @@ bool start_thread_obtaining_mutex(pthread_t *thread, pthread_mutex_t *mutex,int 
 
 	//free(t_data);
 
-	if(result)
+	if(result != 0)
 			return false;
 	else
 			return true;
