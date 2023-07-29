@@ -9,23 +9,43 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <signal.h>
+#include <string.h>
 
 #define BUFFER_SIZE 16
 
+int sockfd;
+int acceptedfd;
+
 int read_socket(int);
 int send_socket(int);
+void signal_handler(int);
 
 int main(int argc, char *argv[]){
 
 	remove("/var/tmp/aesdsocketdata");
+	int daemon_mode=0;
 
-	int sockfd = socket(AF_INET, SOCK_STREAM, 0); //returns a file descriptor
+	
+	if(getopt(argc, argv, "d")=='d'){
+	//if (strcmp(argv[1], "-d") == 0){
+		daemon_mode=1;
+		printf("daemon mode enabled\n");	
+	}
+
+	sockfd=socket(PF_INET, SOCK_STREAM, 0); //returns a file descriptor
 		
 	if(sockfd==-1){
 		perror("socket");
 		return -1;
 	}
 
+	//enable SO_REUSEADDR
+	int optval=1;
+	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1) {
+        	perror("setsockopt");
+        	return -1;
+    	}
 	int status;
 	struct addrinfo hints;
 	struct addrinfo *servinfo;
@@ -52,6 +72,29 @@ int main(int argc, char *argv[]){
 
 	freeaddrinfo(servinfo);
 
+	if(daemon_mode==1){
+		pid_t pid = fork();
+
+    		if (pid < 0) {
+       		perror("fork");
+        	return -1;
+    		}
+
+    		// If we get a valid PID, this is the parent process, so we can exit.
+    		if (pid > 0) {
+        		exit(EXIT_SUCCESS);
+    		}
+	}
+
+	if (signal(SIGINT, signal_handler) == SIG_ERR) {
+        	perror("Error setting SIGINT handler");
+        	return EXIT_FAILURE;
+    	}
+
+    	if (signal(SIGTERM, signal_handler) == SIG_ERR) {
+        	perror("Error setting SIGTERM handler");
+        	return EXIT_FAILURE;
+	}
 	while(1){
 		//listning to the socket
 		int backlog=1; //number of pending connections allowed before refusing
@@ -63,7 +106,7 @@ int main(int argc, char *argv[]){
 		//accepting
 		struct sockaddr acc_sockaddr;
 		socklen_t len_acc_sockaddr = sizeof(acc_sockaddr);
-		int acceptedfd = accept(sockfd, &acc_sockaddr, &len_acc_sockaddr);
+		acceptedfd = accept(sockfd, &acc_sockaddr, &len_acc_sockaddr);
 
 		if(acceptedfd == -1){
 			perror("accept");
@@ -113,10 +156,10 @@ int send_socket(int acceptedfd){
 	bytes_read=read(fd, text, BUFFER_SIZE2);
 	ssize_t bytes_written;
 	while(bytes_read>0){
-		printf("bytes_read: %d\n",bytes_read);
+		//printf("bytes_read: %d\n",bytes_read);
 		printf("sending: %s\n",text);
 		bytes_written=send(acceptedfd,text,bytes_read,0);
-		printf("bytes_written: %d\n",bytes_written);
+		//printf("bytes_written: %d\n",bytes_written);
 
 		if(bytes_written == -1){
 			perror("send");
@@ -126,7 +169,6 @@ int send_socket(int acceptedfd){
 	}
 
 	close(fd);
-
 	return 0;
 }
 
@@ -166,4 +208,20 @@ int read_socket(int acceptedfd){
     fclose(file);
 	
     return 0;
+}
+
+void signal_handler(int signum) {
+    if (signum == SIGINT) {
+        printf("\nReceived SIGINT (Ctrl+C).\n");
+    } else if (signum == SIGTERM) {
+        printf("\nReceived SIGTERM.\n");
+    }
+
+    close(sockfd);
+    close(acceptedfd);
+    remove("/var/tmp/aesdsocketdata");
+    syslog(LOG_INFO,"Caught signal, exiting");
+
+
+    exit(EXIT_SUCCESS);
 }
