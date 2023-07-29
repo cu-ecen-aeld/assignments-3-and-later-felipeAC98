@@ -7,17 +7,20 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 
-#define BUFFER_SIZE 2
+#define BUFFER_SIZE 16
 
 int read_socket(int);
 int send_socket(int);
 
 int main(int argc, char *argv[]){
 
-	int sockfd = socket(PF_INET, SOCK_STREAM, 0); //returns a file descriptor
-	
+	remove("/var/tmp/aesdsocketdata");
+
+	int sockfd = socket(AF_INET, SOCK_STREAM, 0); //returns a file descriptor
+		
 	if(sockfd==-1){
 		perror("socket");
 		return -1;
@@ -47,44 +50,56 @@ int main(int argc, char *argv[]){
 		return -1;
 	}
 
-	//listning to the socket
-	int backlog=5; //number of pending connections allowed before refusing
-	if(listen(sockfd, backlog)==-1){
-		perror("listen");
-		return -1;
-	}
-
-	//accepting
-	struct sockaddr acc_sockaddr;
-	socklen_t len_acc_sockaddr = sizeof(acc_sockaddr);
-	int acceptedfd = accept(sockfd, &acc_sockaddr, &len_acc_sockaddr);
-
-	if(acceptedfd == -1){
-		perror("accept");
-		return -1;
-	}
-
-	char client_ip[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, &(((struct sockaddr_in *)&acc_sockaddr)->sin_addr), client_ip, INET_ADDRSTRLEN);
-
-	syslog(LOG_USER,"Accepted connection from %s",client_ip);
-	printf("Accepted connection from %s\n",client_ip);
-	
-	if(read_socket(acceptedfd)==-1){
-		return -1;
-	}
-
-
-	if(send_socket(acceptedfd) == -1)
-		return -1;
-
 	freeaddrinfo(servinfo);
+
+	while(1){
+		//listning to the socket
+		int backlog=1; //number of pending connections allowed before refusing
+		if(listen(sockfd, backlog)==-1){
+			perror("listen");
+			return -1;
+		}
+
+		//accepting
+		struct sockaddr acc_sockaddr;
+		socklen_t len_acc_sockaddr = sizeof(acc_sockaddr);
+		int acceptedfd = accept(sockfd, &acc_sockaddr, &len_acc_sockaddr);
+
+		if(acceptedfd == -1){
+			perror("accept");
+			return -1;
+		}
+
+		char client_ip[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, &(((struct sockaddr_in *)&acc_sockaddr)->sin_addr), client_ip, INET_ADDRSTRLEN);
+
+		syslog(LOG_INFO,"Accepted connection from %s",client_ip);
+
+		if(read_socket(acceptedfd)==-1){
+			perror("read");
+			close(acceptedfd);
+			close(sockfd);
+			return -1;
+		}
+
+
+		if(send_socket(acceptedfd) == -1){
+	        	perror("send");
+                        close(acceptedfd);
+                        close(sockfd);
+
+			return -1;
+		}
+		syslog(LOG_INFO, "Closed connection from %s", client_ip);
+		close(acceptedfd);
+	}
+	close(sockfd);
 
         return 0;
 }
 
 int send_socket(int acceptedfd){
-	int BUFFER_SIZE2=16;
+	int BUFFER_SIZE2=BUFFER_SIZE;
 	int fd;
         char text[BUFFER_SIZE2];
 	ssize_t bytes_read;
@@ -95,18 +110,19 @@ int send_socket(int acceptedfd){
 		return -1;	
 	}
 
-	bytes_read=read(fd, text, BUFFER_SIZE2-1);
-	printf("bytes_read: %d\n",bytes_read);
+	bytes_read=read(fd, text, BUFFER_SIZE2);
+	ssize_t bytes_written;
 	while(bytes_read>0){
+		printf("bytes_read: %d\n",bytes_read);
 		printf("sending: %s\n",text);
-		
+		bytes_written=send(acceptedfd,text,bytes_read,0);
+		printf("bytes_written: %d\n",bytes_written);
 
-		if(send(acceptedfd,text,bytes_read,0) == -1){
+		if(bytes_written == -1){
 			perror("send");
 			return -1;
 		}
-		bytes_read=read(fd, text, BUFFER_SIZE2-1);
-		printf("bytes_read: %d\n",bytes_read);
+		bytes_read=read(fd, text, BUFFER_SIZE2);
 	}
 
 	close(fd);
@@ -115,39 +131,39 @@ int send_socket(int acceptedfd){
 }
 
 int read_socket(int acceptedfd){
-        int stop_received=0;
-        char text[BUFFER_SIZE];
-        int file = open("/var/tmp/aesdsocketdata", O_RDWR | O_CREAT | O_TRUNC, 0755);
+    FILE *file;
+    char buffer[BUFFER_SIZE];
+    ssize_t bytes_received;
 
-        while(stop_received==0){
+    // Open the file in append mode for writing
+    file = fopen("/var/tmp/aesdsocketdata", "a");
+    if (file == NULL) {
+        syslog(LOG_ERR, "Error opening file");
+        return -1;
+    }
 
-                //Receive the data from socket
-                int bytes_received=recv(acceptedfd, text, BUFFER_SIZE-1,0);
+    // Receive data from the client and append it to the file
+    while ((bytes_received = recv(acceptedfd, buffer, sizeof(buffer), 0)) > 0) {
+        // Find the first newline character in the received data
+        char *newline_ptr = memchr(buffer, '\n', bytes_received);
+        printf("buffer write:%s\n",buffer);
+        if (newline_ptr != NULL) {
+            // Calculate the size of the data before the newline
+            size_t data_size = newline_ptr - buffer + 1;
 
-                if(bytes_received == -1){
-                        perror("read");
-			close(file);
-                        return -1;
-                }
+            // Append the data to the file
+            fwrite(buffer, 1, data_size, file);
 
-                if(bytes_received==0){
-                        //text[0]='\n';
-                        stop_received=1;
-                }
-                else{
-			text[bytes_received]='\0';
-                        printf("value read: %s\n",text);
-			
-			//writing the data into file
-            		if (write(file, text, 1)==-1){
-              	         	close(file);
-                	        perror("write");
-                        	return -1;
-                	}
-		}
+            // Stop receiving more data after the newline
+            break;
+        } else {
+            // Append the entire buffer to the file
+            fwrite(buffer, 1, bytes_received, file);
+        }
+    }
 
-        }//*/
-        close(file);
-
-	return 0;
+    // Close the file and the client socket
+    fclose(file);
+	
+    return 0;
 }

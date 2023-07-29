@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS= -c
+CFLAGS= -Wall -Werror
 CROSS= $(CCOMPILE)gcc
 
 all: default
