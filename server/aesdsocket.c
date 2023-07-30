@@ -33,7 +33,7 @@ int main(int argc, char *argv[]){
 		printf("daemon mode enabled\n");	
 	}
 
-	sockfd=socket(PF_INET, SOCK_STREAM, 0); //returns a file descriptor
+	sockfd=socket(AF_INET, SOCK_STREAM, 0); //returns a file descriptor
 		
 	if(sockfd==-1){
 		perror("socket");
@@ -52,7 +52,7 @@ int main(int argc, char *argv[]){
 
 	//getting the sock address to use inside bind
 	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
+	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 

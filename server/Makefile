@@ -1,15 +1,15 @@
 CC = gcc
-CFLAGS= -Wall -Werror
+CFLAGS=  -Wall -Werror
 CROSS= $(CCOMPILE)gcc
 
-all: default
+all: _default
 
-default: aesdsocket.c
+_default: aesdsocket.c
 	$(CC) -o aesdsocket aesdsocket.c
 
 clean : 
 	rm -f aesdsocket && rm -f aesdsocket.o
 
 CROSS_COMPILE:
-	$(CROSS) $(CFLAGS) aesdsocket.c -o aesdsocket.o
+	$(CROSS) -c aesdsocket.c -o aesdsocket.o
 	$(CROSS) aesdsocket.o -o aesdsocket
